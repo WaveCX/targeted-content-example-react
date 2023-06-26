@@ -1,99 +1,66 @@
 import {useEffect, useState} from 'react';
+import {
+  initialize as initializeWaveCx,
+  setUser as setWaveCxUser,
+  setContext,
+  clearContext,
+} from '@wavecx/targeted-content';
 
 import {hashUserId} from './hash-user-id';
-import {Modal} from './modal';
 
 import styles from './main.module.css';
 
 const apiBaseUrl = process.env['REACT_APP_API_BASE_URL'];
 const orgCode = process.env['REACT_APP_ORG_CODE'];
 
-const triggerPoints = [
+const views = [
   'account-view',
   'payments',
-  'transfers',
+  'no-trigger-point-page',
 ];
 
-type ContentItem = {
-  triggerPoint: string;
-  viewUrl: string;
-  presentationType: 'popup' | 'button-triggered';
-  buttonConfig?: {
-    title: string;
-    textColor: string;
-    backgroundColor: string;
-    borderRadius: number;
-  };
-};
+const triggerPointForView = (view: string): string | undefined => {
+  if (view !== 'no-trigger-point-page') {
+    return view;
+  }
+}
 
 export const Main = () => {
   const [userId, setUserId] = useState('');
   const [userIdInput, setUserIdInput] = useState('');
-  const [page, setPage] = useState(triggerPoints[0]);
-  const [content, setContent] = useState<ContentItem[]>([]);
-  const [isReadingContent, setIsReadingContent] = useState(false);
-  const [isPopupContentShown, setIsPopupContentShown] = useState(true);
-  const [isButtonTriggeredContentShown, setIsButtonTriggeredContentShown] = useState(false);
-
-  const popupContent = content.filter((c) => c.presentationType === 'popup');
-  const buttonTriggeredContent = content.filter((c) => c.presentationType === 'button-triggered');
+  const [view, setView] = useState(views[0]);
 
   useEffect(() => {
-    (async () => {
-      setContent([]);
-      if (userId !== '') {
-        setIsReadingContent(true);
-        setIsPopupContentShown(true);
-        setIsButtonTriggeredContentShown(false)
+    // initialize WaveCX
+    initializeWaveCx({
+      organizationCode: orgCode ?? '', // organization code for the WaveCX account you are integrating with
+      apiBaseUrl, // defaults to production API
+      contentTypes: ['featurette'], // only featurette content is relevant for feature tour
+      platform: 'desktop', // mobile | desktop
+      buttonClassName: styles.triggerButton, // apply custom classes to UI elements
+      viewClassName: styles.viewContainer,
+    })
+  }, []);
 
-        // fake delay for demonstration
-        await new Promise((r) => setTimeout(r, 2000));
+  useEffect(() => {
+    // pass user ID and verification to WaveCX upon authentication
+    setWaveCxUser({id: userId, verificationHash: hashUserId(userId)});
+  }, [userId]);
 
-        const response = await fetch(`${apiBaseUrl}/${orgCode}/targeted-content-events`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            type: 'trigger-point',
-            userId,
-            userIdVerification: hashUserId(userId),
-            triggerPoint: page,
-            platform: 'desktop',
-            contentTypes: ['featurette'], // only featurette content is relevant for feature tour
-          }),
-        });
-        if (response.status === 201) {
-          const responseBody = await response.json();
-          setContent(responseBody.content);
-          setIsReadingContent(false);
-        }
+  useEffect(() => {
+    if (userId) {
+      // for each page/view change, update or clear the WaveCX context
+      const triggerPoint = triggerPointForView(view);
+      if (triggerPoint) {
+        setContext({triggerPoint});
       } else {
-        setPage(triggerPoints[0]);
+        clearContext();
       }
-    })();
-  }, [page, userId]);
+    }
+  }, [view, userId]);
 
   return (
     <>
-      {isPopupContentShown && popupContent.length > 0 && (
-        <Modal onCloseRequested={() => setIsPopupContentShown(false)}>
-          <iframe
-            title={'Targeted Content'}
-            src={popupContent[0].viewUrl}
-            className={styles.contentContainer}
-          />
-        </Modal>
-      )}
-
-      {isButtonTriggeredContentShown && buttonTriggeredContent.length > 0 && (
-        <Modal onCloseRequested={() => setIsButtonTriggeredContentShown(false)}>
-          <iframe
-            title={'Targeted Content'}
-            src={buttonTriggeredContent[0].viewUrl}
-            className={styles.contentContainer}
-          />
-        </Modal>
-      )}
-
       <header>
         <h1>Targeted Content Example</h1>
         {userId !== '' && (
@@ -104,9 +71,9 @@ export const Main = () => {
             </p>
             <nav>
               <ul>
-                {triggerPoints.map((t) => (
+                {views.map((t) => (
                   <li key={t}>
-                    <button onClick={() => setPage(t)}>{t}</button>
+                    <button onClick={() => setView(t)}>{t}</button>
                   </li>
                 ))}
               </ul>
@@ -136,24 +103,10 @@ export const Main = () => {
         <>
           <hr/>
           <main>
-            <h2>{page}</h2>
-            {isReadingContent && <p>Fetching content for trigger point "{page}"...</p>}
-            {!isReadingContent && <pre>{JSON.stringify(content, null, 2)}</pre>}
-            {buttonTriggeredContent.length > 0 && (
-              <p>
-                <button
-                  className={styles.triggerButton}
-                  style={{
-                    borderRadius: buttonTriggeredContent[0].buttonConfig?.borderRadius,
-                    backgroundColor: buttonTriggeredContent[0].buttonConfig?.backgroundColor,
-                    color: buttonTriggeredContent[0].buttonConfig?.textColor,
-                  }}
-                  onClick={() => setIsButtonTriggeredContentShown(true)}
-                >
-                  {buttonTriggeredContent[0].buttonConfig?.title}
-                </button>
-              </p>
-            )}
+            <h2>{view}</h2>
+            {view === 'account-view' && <p>This view has button-triggered content</p>}
+            {view === 'payments' && <p>This view has popup content</p>}
+            {view === 'no-trigger-point-page' && <p>This view has no content</p>}
           </main>
         </>
       )}
