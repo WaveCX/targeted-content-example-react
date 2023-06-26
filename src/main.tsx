@@ -40,12 +40,15 @@ export const Main = () => {
             userId,
             userIdVerification: hashUserId(userId),
             triggerPoint: page,
+            platform: 'desktop',
+            contentTypes: ['featurette'], // only featurette content is relevant for feature tour
           }),
         });
-        const responseBody = await response.json();
-
-        setContent(responseBody.content);
-        setIsReadingContent(false);
+        if (response.status === 201) {
+          const responseBody = await response.json();
+          setContent(responseBody.content);
+          setIsReadingContent(false);
+        }
       } else {
         setPage(triggerPoints[0]);
       }
@@ -57,6 +60,7 @@ export const Main = () => {
       {!isContentHidden && content.length > 0 && (
         <Modal onCloseRequested={() => setIsContentHidden(true)}>
           <iframe
+            title={'Targeted Content'}
             src={content[0].viewUrl}
             className={styles.contentContainer}
           />
