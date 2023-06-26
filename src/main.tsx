@@ -14,20 +14,37 @@ const triggerPoints = [
   'transfers',
 ];
 
+type ContentItem = {
+  triggerPoint: string;
+  viewUrl: string;
+  presentationType: 'popup' | 'button-triggered';
+  buttonConfig?: {
+    title: string;
+    textColor: string;
+    backgroundColor: string;
+    borderRadius: number;
+  };
+};
+
 export const Main = () => {
   const [userId, setUserId] = useState('');
   const [userIdInput, setUserIdInput] = useState('');
   const [page, setPage] = useState(triggerPoints[0]);
-  const [content, setContent] = useState<{triggerPoint: string; viewUrl: string}[]>([]);
+  const [content, setContent] = useState<ContentItem[]>([]);
   const [isReadingContent, setIsReadingContent] = useState(false);
-  const [isContentHidden, setIsContentHidden] = useState(false);
+  const [isPopupContentShown, setIsPopupContentShown] = useState(true);
+  const [isButtonTriggeredContentShown, setIsButtonTriggeredContentShown] = useState(false);
+
+  const popupContent = content.filter((c) => c.presentationType === 'popup');
+  const buttonTriggeredContent = content.filter((c) => c.presentationType === 'button-triggered');
 
   useEffect(() => {
     (async () => {
       setContent([]);
       if (userId !== '') {
         setIsReadingContent(true);
-        setIsContentHidden(false);
+        setIsPopupContentShown(true);
+        setIsButtonTriggeredContentShown(false)
 
         // fake delay for demonstration
         await new Promise((r) => setTimeout(r, 2000));
@@ -57,11 +74,21 @@ export const Main = () => {
 
   return (
     <>
-      {!isContentHidden && content.length > 0 && (
-        <Modal onCloseRequested={() => setIsContentHidden(true)}>
+      {isPopupContentShown && popupContent.length > 0 && (
+        <Modal onCloseRequested={() => setIsPopupContentShown(false)}>
           <iframe
             title={'Targeted Content'}
-            src={content[0].viewUrl}
+            src={popupContent[0].viewUrl}
+            className={styles.contentContainer}
+          />
+        </Modal>
+      )}
+
+      {isButtonTriggeredContentShown && buttonTriggeredContent.length > 0 && (
+        <Modal onCloseRequested={() => setIsButtonTriggeredContentShown(false)}>
+          <iframe
+            title={'Targeted Content'}
+            src={buttonTriggeredContent[0].viewUrl}
             className={styles.contentContainer}
           />
         </Modal>
@@ -112,6 +139,21 @@ export const Main = () => {
             <h2>{page}</h2>
             {isReadingContent && <p>Fetching content for trigger point "{page}"...</p>}
             {!isReadingContent && <pre>{JSON.stringify(content, null, 2)}</pre>}
+            {buttonTriggeredContent.length > 0 && (
+              <p>
+                <button
+                  className={styles.triggerButton}
+                  style={{
+                    borderRadius: buttonTriggeredContent[0].buttonConfig?.borderRadius,
+                    backgroundColor: buttonTriggeredContent[0].buttonConfig?.backgroundColor,
+                    color: buttonTriggeredContent[0].buttonConfig?.textColor,
+                  }}
+                  onClick={() => setIsButtonTriggeredContentShown(true)}
+                >
+                  {buttonTriggeredContent[0].buttonConfig?.title}
+                </button>
+              </p>
+            )}
           </main>
         </>
       )}

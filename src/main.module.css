@@ -3,3 +3,12 @@
   height: 80vh;
   border: none;
 }
+
+.triggerButton {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  border: none;
+  padding: 0.5em 1.5em;
+  cursor: pointer;
+}
